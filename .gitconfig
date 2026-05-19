@@ -1,0 +1,57 @@
+[user]
+	name = elyesj23
+	email = jafarelyes@gmail.com
+
+[init]
+	defaultBranch = main
+
+[core]
+	editor = cursor --wait
+	excludesfile = ~/.gitignore_global
+	pager = less -FRX
+
+[color]
+	ui = auto
+
+[push]
+	autoSetupRemote = true
+	default = current
+	followTags = true
+
+[pull]
+	rebase = false
+	ff = only
+
+[fetch]
+	prune = true
+
+[merge]
+	conflictstyle = zdiff3
+
+[rerere]
+	enabled = true
+
+[diff]
+	algorithm = histogram
+	colorMoved = default
+
+[log]
+	date = iso
+
+[alias]
+	st = status -sb
+	co = checkout
+	cb = checkout -b
+	br = branch
+	ci = commit
+	ca = commit --amend
+	cm = commit -m
+	d = diff
+	ds = diff --staged
+	lg = log --oneline --graph --decorate -20
+	lga = log --oneline --graph --decorate --all
+	last = log -1 HEAD --stat
+	unstage = reset HEAD --
+	uncommit = reset --soft HEAD~1
+	wip = !git add -A && git commit -m 'wip'
+	root = rev-parse --show-toplevel

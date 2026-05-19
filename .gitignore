@@ -1,0 +1,9 @@
+.DS_Store
+*.bak
+*.bak.*
+.zcompdump
+.zsh_history
+.zshrc.local
+.env
+.env.*
+*.swp
