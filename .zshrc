@@ -246,6 +246,16 @@ copypath() { pwd | tr -d '\n' | pbcopy && echo "copied: $(pwd)"; }
 # public IP
 myip() { curl -s https://api.ipify.org && echo; }
 
+# scan all devices on current wifi
+scan() {
+  local ip
+  ip=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
+  if [[ -z "$ip" ]]; then echo "not connected to wifi"; return 1; fi
+  local subnet="${ip%.*}.0/24"
+  echo "scanning $subnet..."
+  nmap -sn "$subnet"
+}
+
 # ──────────────────────────────────────────────────────────────────────────────
 # pip  —  block accidental global installs; route through uv for speed
 # ──────────────────────────────────────────────────────────────────────────────
