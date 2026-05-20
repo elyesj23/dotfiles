@@ -2,6 +2,13 @@
 # Originals backed up to ~/dotfiles-backup-<timestamp>/
 
 # ──────────────────────────────────────────────────────────────────────────────
+# fastfetch  —  system info on new terminal sessions
+# ──────────────────────────────────────────────────────────────────────────────
+if command -v fastfetch >/dev/null 2>&1 && [[ "$TERM_PROGRAM" == "iTerm.app" ]]; then
+  fastfetch
+fi
+
+# ──────────────────────────────────────────────────────────────────────────────
 # PATH (deduped, prepends in priority order)
 # Note: Homebrew shellenv runs in ~/.zprofile for login shells.
 # ──────────────────────────────────────────────────────────────────────────────
@@ -252,8 +259,68 @@ scan() {
   ip=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
   if [[ -z "$ip" ]]; then echo "not connected to wifi"; return 1; fi
   local subnet="${ip%.*}.0/24"
-  echo "scanning $subnet..."
-  sudo nmap -sn -R --system-dns "$subnet"
+  local tmpfile=$(mktemp)
+
+  setopt LOCAL_OPTIONS NO_MONITOR NO_NOTIFY
+
+  sudo -v || return 1
+  sudo nmap -sn -R --system-dns "$subnet" > "$tmpfile" 2>/dev/null &
+  local nmap_pid=$!
+
+  local frames=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+  local i=1
+  while kill -0 $nmap_pid 2>/dev/null; do
+    printf "\r  ${frames[$i]} scanning your network..."
+    i=$(( (i % ${#frames}) + 1 ))
+    sleep 0.08
+  done
+  wait $nmap_pid 2>/dev/null
+  printf "\r\033[K"
+
+  echo "Devices on your network:\n"
+  awk '
+    function clean(h) {
+      gsub(/\.fritz\.box$/, "", h)
+      gsub(/\.local$/, "", h)
+      gsub(/\.home$/, "", h)
+      if (h == "fritz.box" || h == "router" || h == "gateway") return "Router"
+      gsub(/-mbp$/, " MacBook Pro", h)
+      gsub(/-mbair$/, " MacBook Air", h)
+      gsub(/-imac$/, " iMac", h)
+      if (h == "iphone") return "iPhone"
+      if (h == "ipad") return "iPad"
+      if (h == "appletv") return "Apple TV"
+      if (h == "homepod") return "HomePod"
+      gsub(/-/, " ", h)
+      return toupper(substr(h,1,1)) substr(h,2)
+    }
+    /Nmap scan report for/ {
+      if (current_ip != "") {
+        count++
+        name = (current_mac == "") ? "This Mac" : clean(current_host)
+        printf "  %-28s %s\n", name, current_ip
+      }
+      if (NF >= 6) {
+        current_host = $5
+        current_ip = $NF
+        gsub(/[()]/, "", current_ip)
+      } else {
+        current_host = ""
+        current_ip = $5
+      }
+      current_mac = ""
+    }
+    /MAC Address:/ { current_mac = $3 }
+    END {
+      if (current_ip != "") {
+        count++
+        name = (current_mac == "") ? "This Mac" : clean(current_host)
+        printf "  %-28s %s\n", name, current_ip
+      }
+      printf "\n  %d devices on your network\n", count+0
+    }
+  ' "$tmpfile"
+  rm -f "$tmpfile"
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -308,6 +375,17 @@ fi
   source "$(brew --prefix)/share/zsh-you-should-use/you-should-use.plugin.zsh"
 [[ -f "$(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] && \
   source "$(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+
+# Tab: accept autosuggestion if one is showing, otherwise normal completion
+_tab_or_autosuggest() {
+  if [[ -n "$POSTDISPLAY" ]]; then
+    zle autosuggest-accept
+  else
+    zle expand-or-complete
+  fi
+}
+zle -N _tab_or_autosuggest
+bindkey '^I' _tab_or_autosuggest
 
 [[ -f "$(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] && \
   source "$(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"

@@ -61,6 +61,9 @@ BREW_PACKAGES=(
   zsh-you-should-use              # reminds you when you forget your own aliases
   xh                              # better curl with readable output
   gitleaks                        # secret/credential scanner for git hooks
+  fastfetch                       # system info display (neofetch replacement)
+  fd                              # faster find with cleaner syntax
+  tldr                            # practical command examples (replaces man pages)
 )
 
 echo
