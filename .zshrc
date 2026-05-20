@@ -253,7 +253,7 @@ scan() {
   if [[ -z "$ip" ]]; then echo "not connected to wifi"; return 1; fi
   local subnet="${ip%.*}.0/24"
   echo "scanning $subnet..."
-  nmap -sn "$subnet"
+  sudo nmap -sn -R --system-dns "$subnet"
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
