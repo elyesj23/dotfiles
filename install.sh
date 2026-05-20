@@ -13,6 +13,7 @@ FILES=(
   ".gitignore_global"
   ".ssh/config"
   ".config/starship.toml"
+  ".git-hooks/pre-commit"
 )
 
 link_one() {
@@ -59,6 +60,7 @@ BREW_PACKAGES=(
   btop                            # visual system monitor
   zsh-you-should-use              # reminds you when you forget your own aliases
   xh                              # better curl with readable output
+  gitleaks                        # secret/credential scanner for git hooks
 )
 
 echo

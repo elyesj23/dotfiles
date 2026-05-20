@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Global pre-commit hook — runs on every repo on this machine.
+# Checks: direct push to main, secrets (gitleaks), large files, ruff on Python.
+# Bypass with: git commit --no-verify
+
+set -euo pipefail
+
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:$PATH"
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null)
+[[ -z "$STAGED" ]] && exit 0
+
+fail() { echo "pre-commit: $1" >&2; exit 1; }
+
+# ── 1. Block direct commits to main / master ──────────────────────────────
+BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
+if [[ "$BRANCH" == "main" || "$BRANCH" == "master" ]]; then
+  fail "direct commit to $BRANCH blocked — create a branch first"
+fi
+
+# ── 2. Secret scanning (gitleaks) ─────────────────────────────────────────
+if command -v gitleaks &>/dev/null; then
+  gitleaks protect --staged --redact -q || \
+    fail "gitleaks detected a secret — check staged changes before committing"
+fi
+
+# ── 3. Large files (> 500 KB) ─────────────────────────────────────────────
+while IFS= read -r f; do
+  [[ -f "$f" ]] || continue
+  size=$(stat -f%z "$f" 2>/dev/null || wc -c < "$f")
+  if (( size > 512000 )); then
+    fail "large file staged: $f ($(( size / 1024 )) KB) — add to .gitignore or use git-lfs"
+  fi
+done < <(echo "$STAGED")
+
+# ── 4. Python: ruff lint + format check ───────────────────────────────────
+PY_FILES=$(echo "$STAGED" | grep '\.py$' || true)
+if [[ -n "$PY_FILES" ]] && command -v ruff &>/dev/null; then
+  echo "pre-commit: ruff check..."
+  # shellcheck disable=SC2086
+  ruff check $PY_FILES || fail "ruff lint failed — run: ruff check --fix"
+  # shellcheck disable=SC2086
+  ruff format --check $PY_FILES || fail "ruff format failed — run: ruff format"
+fi
+
+# ── 5. Delegate to repo-local hook if present ─────────────────────────────
+LOCAL_HOOK="$(git rev-parse --git-dir)/hooks/pre-commit"
+if [[ -x "$LOCAL_HOOK" ]]; then
+  exec "$LOCAL_HOOK" "$@"
+fi
+
+exit 0
