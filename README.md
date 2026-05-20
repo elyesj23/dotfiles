@@ -90,7 +90,10 @@ cd ~/dotfiles
 # 3. Link + install everything
 ./install.sh
 
-# 4. Reload shell
+# 4. Apply macOS system defaults (one-time)
+./macos.sh
+
+# 5. Reload shell
 exec zsh
 ```
 
