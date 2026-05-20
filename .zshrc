@@ -278,6 +278,13 @@ ai() {
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
+# mise  —  runtime version manager + task runner (python, node, etc. per project)
+# ──────────────────────────────────────────────────────────────────────────────
+if command -v mise >/dev/null 2>&1; then
+  eval "$(mise activate zsh)"
+fi
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Local overrides (machine-specific, never commit)
 # ──────────────────────────────────────────────────────────────────────────────
 [[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"

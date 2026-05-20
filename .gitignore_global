@@ -16,6 +16,11 @@ Icon
 .VolumeIcon.icns
 .com.apple.timemachine.donotpresent
 
+# Personal task runners / version managers (local only, not for teammates)
+.mise.toml
+Justfile
+Taskfile.yml
+
 # Editors
 .vscode/
 .idea/
