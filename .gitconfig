@@ -8,7 +8,15 @@
 [core]
 	editor = cursor --wait
 	excludesfile = ~/.gitignore_global
-	pager = less -FRX
+	pager = delta
+
+[interactive]
+	diffFilter = delta --color-only
+
+[delta]
+	navigate = true
+	side-by-side = true
+	line-numbers = true
 
 [color]
 	ui = auto

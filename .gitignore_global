@@ -23,10 +23,27 @@ Icon
 *.swo
 *~
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+.direnv/
+
+# Node
+node_modules/
+
 # Env / secrets
 .env
 .env.local
 .env.*.local
+.envrc.secret
 
 # Logs
 *.log

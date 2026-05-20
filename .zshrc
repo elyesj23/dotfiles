@@ -20,8 +20,6 @@ export PATH
 HISTFILE="$HOME/.zsh_history"
 HISTSIZE=50000
 SAVEHIST=50000
-setopt APPEND_HISTORY
-setopt INC_APPEND_HISTORY
 setopt SHARE_HISTORY
 setopt HIST_IGNORE_DUPS
 setopt HIST_IGNORE_ALL_DUPS
@@ -63,12 +61,28 @@ export PAGER="less"
 export LESS="-FRX"
 
 # ──────────────────────────────────────────────────────────────────────────────
+# direnv  —  per-directory .envrc files (API keys, env vars scoped to project)
+# ──────────────────────────────────────────────────────────────────────────────
+if command -v direnv >/dev/null 2>&1; then
+  eval "$(direnv hook zsh)"
+fi
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Aliases
 # ──────────────────────────────────────────────────────────────────────────────
-alias ls='ls -G'
-alias ll='ls -lhG'
-alias la='ls -lhAG'
-alias l='ls -CF'
+# eza  —  replaces ls with icons + git status (requires Nerd Font)
+if command -v eza >/dev/null 2>&1; then
+  alias ls='eza --icons --group-directories-first'
+  alias ll='eza --icons --git --long --group-directories-first'
+  alias la='eza --icons --git --long --all --group-directories-first'
+  alias l='eza --icons --group-directories-first'
+  alias lt='eza --icons --tree --level=2 --group-directories-first'
+else
+  alias ls='ls -G'
+  alias ll='ls -lhG'
+  alias la='ls -lhAG'
+  alias l='ls -CF'
+fi
 alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
@@ -95,6 +109,16 @@ alias rm='rm -i'
 alias cp='cp -i'
 alias mv='mv -i'
 
+# bat  —  cat with syntax highlighting (-pp = plain, no pager, drop-in replacement)
+if command -v bat >/dev/null 2>&1; then
+  alias cat='bat -pp'
+fi
+
+# lazygit  —  visual git TUI
+if command -v lazygit >/dev/null 2>&1; then
+  alias lz='lazygit'
+fi
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Starship prompt
 # ──────────────────────────────────────────────────────────────────────────────
@@ -114,6 +138,13 @@ fi
 # ──────────────────────────────────────────────────────────────────────────────
 [[ -f "$HOME/.fzf.zsh" ]] && source "$HOME/.fzf.zsh"
 export FZF_DEFAULT_OPTS="--height 40% --reverse --border --info=inline"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# atuin  —  must be after fzf so it wins the Ctrl+R binding
+# ──────────────────────────────────────────────────────────────────────────────
+if command -v atuin >/dev/null 2>&1; then
+  eval "$(atuin init zsh --disable-up-arrow)"
+fi
 
 # Fuzzy git branch checkout — local + remote, deduped
 gcof() {
@@ -139,13 +170,23 @@ _auto_venv() {
     if [[ -f "$d/venv/bin/activate"  ]]; then venv="$d/venv";  break; fi
     d="${d:h}"
   done
+
+  _deactivate_venv() {
+    if type deactivate >/dev/null 2>&1; then
+      deactivate >/dev/null 2>&1
+    else
+      unset VIRTUAL_ENV VIRTUAL_ENV_PROMPT
+    fi
+  }
+
   if [[ -n "$venv" ]]; then
-    if [[ "${VIRTUAL_ENV:-}" != "$venv" ]]; then
-      [[ -n "${VIRTUAL_ENV:-}" ]] && type deactivate >/dev/null 2>&1 && deactivate >/dev/null 2>&1
+    # re-source if venv changed OR if deactivate is missing (after exec zsh)
+    if [[ "${VIRTUAL_ENV:-}" != "$venv" ]] || ! type deactivate >/dev/null 2>&1; then
+      [[ -n "${VIRTUAL_ENV:-}" ]] && _deactivate_venv
       source "$venv/bin/activate"
     fi
   else
-    [[ -n "${VIRTUAL_ENV:-}" ]] && type deactivate >/dev/null 2>&1 && deactivate >/dev/null 2>&1
+    [[ -n "${VIRTUAL_ENV:-}" ]] && _deactivate_venv
   fi
 }
 autoload -Uz add-zsh-hook
@@ -153,6 +194,103 @@ add-zsh-hook chpwd _auto_venv
 _auto_venv
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Shell utilities — no dependencies, pure zsh
+# ──────────────────────────────────────────────────────────────────────────────
+
+# mkdir + cd in one
+mkcd() { mkdir -p "$1" && cd "$1"; }
+
+# kill whatever is on a port
+killport() {
+  local pid
+  pid=$(lsof -ti tcp:"$1")
+  if [[ -z "$pid" ]]; then
+    echo "nothing on port $1"
+    return 1
+  fi
+  echo "killing $pid on port $1"
+  kill -9 $pid
+}
+
+# quick HTTP server in current folder
+serve() { python3 -m http.server "${1:-8000}"; }
+
+# universal archive extractor
+extract() {
+  case "$1" in
+    *.tar.bz2) tar xjf "$1" ;;
+    *.tar.gz)  tar xzf "$1" ;;
+    *.tar.xz)  tar xJf "$1" ;;
+    *.tar)     tar xf  "$1" ;;
+    *.zip)     unzip   "$1" ;;
+    *.gz)      gunzip  "$1" ;;
+    *.bz2)     bunzip2 "$1" ;;
+    *.rar)     unrar x "$1" ;;
+    *.7z)      7z x    "$1" ;;
+    *)         echo "unknown format: $1" ;;
+  esac
+}
+
+# go up N directories
+up() { cd "$(printf '../%.0s' $(seq 1 "${1:-1}"))"; }
+
+# create a temp dir and cd into it
+tmpdir() { cd "$(mktemp -d)"; }
+
+# list env vars, optionally filtered
+envs() { env | sort | grep -i "${1:-.}"; }
+
+# copy current path to clipboard
+copypath() { pwd | tr -d '\n' | pbcopy && echo "copied: $(pwd)"; }
+
+# public IP
+myip() { curl -s https://api.ipify.org && echo; }
+
+# ──────────────────────────────────────────────────────────────────────────────
+# pip  —  block accidental global installs; route through uv for speed
+# ──────────────────────────────────────────────────────────────────────────────
+pip() {
+  if [[ "$1" == "install" && -z "$VIRTUAL_ENV" ]]; then
+    echo "no venv active. run: newvenv"
+    echo "to install globally anyway: command pip $@"
+    return 1
+  fi
+  uv pip "$@"
+}
+
+alias newvenv='uv venv && source .venv/bin/activate'
+
+# ──────────────────────────────────────────────────────────────────────────────
+# llm  —  AI from the terminal. Usage: llm "question"  or  cmd | llm "question"
+# `ai` is a resilient wrapper that falls back if the free model is rate-limited.
+# ──────────────────────────────────────────────────────────────────────────────
+ai() {
+  local models=(
+    "openrouter/deepseek/deepseek-v4-flash:free"
+    "openrouter/meta-llama/llama-3.3-70b-instruct:free"
+    "openrouter/openai/gpt-oss-20b:free"
+  )
+  for model in "${models[@]}"; do
+    llm -m "$model" "$@" && return
+  done
+  echo "all free models failed" >&2
+  return 1
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Local overrides (machine-specific, never commit)
 # ──────────────────────────────────────────────────────────────────────────────
 [[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# zsh-autosuggestions  —  fish-like history suggestions (→ to accept)
+# zsh-you-should-use   —  reminds you when you forget your own aliases
+# zsh-syntax-highlighting  —  real-time command highlighting (must be last)
+# ──────────────────────────────────────────────────────────────────────────────
+[[ -f "$(brew --prefix)/share/zsh-you-should-use/you-should-use.plugin.zsh" ]] && \
+  source "$(brew --prefix)/share/zsh-you-should-use/you-should-use.plugin.zsh"
+[[ -f "$(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] && \
+  source "$(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+
+[[ -f "$(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] && \
+  source "$(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
